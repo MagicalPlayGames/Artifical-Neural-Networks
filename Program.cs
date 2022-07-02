@@ -7,10 +7,8 @@ namespace CsharpANN
     public class Program
     {
         //Runs per operate action
-        public int iterations = 0;
-        //calc cost (N/A)
-        public float[] costs;
-        public int totalCosts = 0;
+        private int algorithmChoice = 0;
+        private int iterations = 0;
         //Accuracy
         private int success;
         private int total;
@@ -23,8 +21,6 @@ namespace CsharpANN
             public float curSum;
             //Store for later
             public float previousSum;
-            //Not used
-            public float outputBeforeActivation;
             //Output
             public float output;
             //current Weights from previous layer to this node
@@ -48,8 +44,6 @@ namespace CsharpANN
             public layer[] layers;
             //Output (change to multiple outputs)
             public float output;
-            //N/A
-            public float outputBeforeActivation;
             //Expected output
             public float realOutput;
             public float learningRate;
@@ -62,10 +56,12 @@ namespace CsharpANN
 
         private int divisbleBy;
 
+
         //This ANN calculates the probability a random number is divisble by divisbleBy
 
-        public Program(int layers, int[] nodes,int divisbleBy,int iterations,float learningRate)
+        public Program(byte layers, int[] nodes, byte divisbleBy,int iterations,float learningRate, byte algoNum)
         {
+            this.algorithmChoice = algoNum;
             this.iterations = iterations;
             this.divisbleBy = divisbleBy;
             control.learningRate = learningRate;
@@ -87,10 +83,32 @@ namespace CsharpANN
                 }
             }
         }
-
+        public Program(ProgramParameters input)
+        {
+            this.algorithmChoice = input.alogirthmNumber;
+            this.iterations = input.iterations;
+            this.divisbleBy = input.divisbleBy;
+            control.learningRate = input.learningRate;
+            control = new brain();
+            control.layers = new layer[input.layers];
+            for (int i = 0; i < input.layers; i++)
+            {
+                control.layers[i].nodes = new node[input.nodes[i]];
+                for (int j = 0; j < input.nodes[i]; j++)
+                {
+                    node newestNode = new node();
+                    newestNode.curSum = newestNode.output = 0;
+                    if (i == input.layers - 1)
+                        newestNode.currentWeights = new float[1];
+                    else
+                        newestNode.currentWeights = new float[input.nodes[i+1]];
+                    newestNode.errorAdjustments = new float[newestNode.currentWeights.Length];
+                    control.layers[i].nodes[j] = newestNode;
+                }
+            }
+        }
         public float testOp()
         {
-            costs = new float[iterations];
             for (int j = 0; j < iterations; j++)
             {
                 Random rnd = new Random();
@@ -116,7 +134,6 @@ namespace CsharpANN
             return accuracy;
         }
 
-        //Implement me
         private bool processData(string inputs, int expectedOutcome)
         {
             readInput(inputs);
@@ -125,7 +142,6 @@ namespace CsharpANN
             return (MathF.Abs(control.output - control.realOutput) < 0.5);
         }
 
-        //sets every weight to a random value
         public void resetWeights()
         {
             Random rnd = new Random();
@@ -141,15 +157,6 @@ namespace CsharpANN
             }
         }
 
-        // Update is called once per frame
-        void Update()
-        {
-            if (operate)
-            {
-                operate = false;
-                testOp();
-            }
-        }
 
         //reads 10101 string input and puts it into the input layer, setting all input weights to 1
         private void readInput(string input)
@@ -167,17 +174,18 @@ namespace CsharpANN
                 i++;
             }
         }
+
         private void readTrueOutput(int output)
         {
             control.realOutput = output;
         }
 
-        //input->h1.sum->sigmoid->h1 output->h2->h3->output->tanh(output)
         private void writeOutput()
         {
-            control.output = 0;
+            float finalOutput = 0;
             bool inputFlag = true;
-            for (int i = 0; i < control.layers.Length; i++)
+            int layersLength = control.layers.Length;
+            for (int i = 0; i < layersLength; i++)
             {
                 layer curLayer = control.layers[i];
                 layer previousLayer;
@@ -198,16 +206,16 @@ namespace CsharpANN
                         node previousNode = previousLayer.nodes[w];
                         curNode.curSum += previousNode.output * previousNode.currentWeights[0];
                     }
-                    control.layers[i].nodes[j].outputBeforeActivation = control.layers[i].nodes[j].previousSum = curNode.curSum;
+                    control.layers[i].nodes[j].previousSum = curNode.curSum;
                     control.layers[i].nodes[j].output = sigmoid(curNode.curSum);
                     control.layers[i].nodes[j].curSum = 0;
                 }
             }
-            for (int i = 0; i < control.layers[control.layers.Length - 1].nodes.Length; i++)
+            for (int i = 0; i < control.layers[layersLength - 1].nodes.Length; i++)
             {
-                control.output += control.layers[control.layers.Length - 1].nodes[i].output * control.layers[control.layers.Length - 1].nodes[i].currentWeights[0];
+                finalOutput += control.layers[layersLength - 1].nodes[i].output * control.layers[layersLength - 1].nodes[i].currentWeights[0];
             }
-            control.output = tanh(control.output);
+            control.output = tanh(finalOutput);
         }
 
         private void updateAllWeights()
@@ -220,13 +228,26 @@ namespace CsharpANN
                     node curNode = curLayer.nodes[j];
                     float[] errorAdjust;
                     if (i == control.layers.Length - 1)
-                        //output layer to last hidden layer
-                        control.layers[i].nodes[j].errorAdjustments = errorAdjust = findSingleError(curNode.currentWeights, control.realOutput - control.output);
+                    //output layer to last hidden layer
+                    {
+                        if(algorithmChoice==2)
+                            errorAdjust = topError();
+                        else
+                            errorAdjust = findSingleError(curNode.currentWeights, control.realOutput - control.output);
+                    }
                     else
                     {
                         //layer to layer
-                        control.layers[i].nodes[j].errorAdjustments = errorAdjust = findMatrixErrors(curLayer.nodes, control.layers[i + 1].nodes);
+                        if (algorithmChoice==0)
+                            errorAdjust = findMatrixErrors(curLayer.nodes, control.layers[i + 1].nodes);
+                        else if(algorithmChoice==1)
+                            errorAdjust = errorTotalRespectCurWeight(curNode, control.layers[i + 1].nodes);
+                        else
+                            errorAdjust = hiddenErrors(curLayer, control.layers[i+1]);
+
                     }
+
+                    control.layers[i].nodes[j].errorAdjustments = errorAdjust;
 
                     for (int w = 0; w < curNode.currentWeights.Length; w++)
                     {
@@ -237,36 +258,121 @@ namespace CsharpANN
             }
         }
 
-        private bool flag = false;
-        //average loss function
-        private float cost()
-        {
-            if (totalCosts == 100)
-            {
-                totalCosts = 0;
-                flag = true;
-            }
-            costs[totalCosts] = loss(control.output, control.realOutput);
-            float totalCost = 0;
-            for (int i = 0; i < 100; i++)
-            {
-                if (!flag && i > totalCosts)
-                    break;
-                totalCost += costs[i];
-            }
-            return totalCost / (totalCosts + 1);
-        }
-
-        private float loss(float predicted, float expected)
-        {
-            return (1e-15f + expected) * MathF.Log(1e-15f + predicted);
-        }
-
         private float sigmoid(float x)
         {
             float EX = MathF.Exp(x);
             return EX / (1 + EX);
         }
+
+        private float sigmoidPrime(float x)
+        {
+            float negativeEX = MathF.Exp(-x);
+            return negativeEX / (MathF.Pow(1 + negativeEX, 2));
+        }
+
+        private float[] topError()
+        {
+            //https://www.bogotobogo.com/python/scikit-learn/Artificial-Neural-Network-ANN-4-Backpropagation.php
+            //top error
+            float[][] outputPrime = new float[1][];
+            outputPrime[0] = new float[1];
+            outputPrime[0][0] = sigmoidPrime(control.output);
+            float[][] outputsTransposed = new float[1][];
+            outputsTransposed[0] = new float[control.layers[control.layers.Length - 1].nodes.Length];
+            for (int i =0;i<control.layers[control.layers.Length-1].nodes.Length;i++)
+            {
+                outputsTransposed[0][i] = control.layers[control.layers.Length - 1].nodes[i].previousSum;
+            }
+            outputsTransposed = transpose(outputsTransposed);
+
+            float[] product = dotProduct(outputPrime, outputsTransposed);
+            for(int i =0;i<product.Length;i++)
+            {
+                product[i] *= -(control.output - control.realOutput);
+            }
+            return product;
+            //-(outcome-trueOutcome)*sigmoidPrime(outputBeforeActivation)DOT(previousOutputsBeforeActivationsTransposed)
+        }
+
+        private float[] hiddenErrors(layer curLayer, layer upperLayer)
+        {
+            float[][] previousErrors = new float[upperLayer.nodes.Length][];
+            for (int i = 0; i < previousErrors.Length; i++)
+            {
+                previousErrors[i] = new float[upperLayer.nodes[i].errorAdjustments.Length];
+                for (int j = 0; j < previousErrors[i].Length; j++)
+                {
+                    previousErrors[i][j] = upperLayer.nodes[i].errorAdjustments[j];
+                }
+            }
+            
+            float[][] sigmoidPrimes = new float[1][];
+            sigmoidPrimes[0] = new float[upperLayer.nodes.Length];
+            for (int i =0;i<sigmoidPrimes[0].Length;i++)
+            {
+                sigmoidPrimes[0][i] = sigmoidPrime(upperLayer.nodes[i].previousSum);
+            }
+            float[][] weightsTransposed = new float[upperLayer.nodes.Length][];
+            for(int i =0;i<weightsTransposed.Length;i++)
+            {
+                weightsTransposed[i] = upperLayer.nodes[i].currentWeights;
+            }
+            weightsTransposed = transpose(weightsTransposed);
+
+            float[][] inputsTransposed = new float[1][];
+            inputsTransposed[0] = new float[curLayer.nodes.Length];
+            for (int i = 0; i < inputsTransposed[0].Length; i++)
+            {
+                inputsTransposed[0][i] = curLayer.nodes[i].output;
+            }
+
+            inputsTransposed = transpose(inputsTransposed);
+
+            float[][] products = new float[1][];
+            products[0] = dotProduct(sigmoidPrimes, weightsTransposed);
+            products[0] = dotProduct(products, inputsTransposed);
+            return dotProduct(products, previousErrors);
+            //hidden errors
+            //previousError*sigmoidPrime(outputBeforeActivation)DOT(weightsTranspose)DOT(inputsTransposed)
+        }
+
+
+        private float errorTotalRespectCurOutput(float outcome, float trueOutcome)
+        {
+            return -(trueOutcome - outcome);
+        }
+
+        private float curOutputRespectNetOutput(float outcome)
+        {
+            return outcome * (1 - outcome);
+        }
+
+        private float netOutputRespectCurWeights(float weight, float outcome)
+        {
+            return weight * outcome;
+        }
+
+        private float[] errorTotalRespectCurWeight(node curNode, node[] upperLayer)
+        {
+            //https://www.edureka.co/blog/backpropagation/
+            //Just read it
+            float[] errors = new float[curNode.currentWeights.Length];
+            for (int i = 0; i < errors.Length; i++)
+            {
+                float errorTotal = 0;
+                for (int j = 0; j < upperLayer[i].errorAdjustments.Length; j++)
+                    errorTotal += upperLayer[i].errorAdjustments[j];
+                float curOutput = upperLayer[i].previousSum;
+
+                float netOutput = upperLayer[i].output;
+                float curWeight = curNode.currentWeights[i];
+                errors[i] = errorTotalRespectCurOutput(curOutput, errorTotal) * curOutputRespectNetOutput(netOutput) * netOutputRespectCurWeights(curWeight, netOutput);
+            }
+            return errors;
+        }
+        
+
+
         private float tanh(float x)
         {
             float EX = MathF.Exp(x);
@@ -274,45 +380,9 @@ namespace CsharpANN
             return (EX - negativeEX) / (EX + negativeEX);
         }
 
-        private float errorChangeOutput(float realOutput, float output)
+        private float errorMSE(float outcome,float trueOutcome)
         {
-            return -(realOutput - output);
-        }
-
-        private float outputChangeNet(float output)
-        {
-            return 1 / (1 + MathF.Exp(-output));
-        }
-
-        private float netChangeWeights(float target, float output, float hiddenOutput)
-        {
-            return -(target - output) * output * (1 - output) * hiddenOutput;
-        }
-
-
-        private float error(float predicted, float target)
-        {
-            return MathF.Pow(predicted - target, 2);
-        }
-
-        private float errorPredictedDerivative(float predicted, float target)
-        {
-            return 2.0f * (predicted - target);
-        }
-
-        private float tanhDerivative(float x)
-        {
-            return tanh(x) * (1.0f - tanh(x));
-        }
-
-        private float sigmoidDerivative(float x)
-        {
-            return sigmoid(x) * (1.0f - sigmoid(x));
-        }
-
-        private float updateWeight(float weight, float grad, float learningRate)
-        {
-            return weight - learningRate * grad;
+            return MathF.Pow(trueOutcome - outcome, 2);
         }
 
         //Error1 = w1/totalWeights * error
@@ -363,6 +433,11 @@ namespace CsharpANN
 
 
             //Dot Product
+            return dotProduct(errors, weights);
+        }
+
+        private float[] dotProduct(float[][] errors, float[][] weights)
+        {
             int size;
             if (errors.Length > weights.Length)
                 size = errors.Length;
@@ -378,7 +453,7 @@ namespace CsharpANN
                 {
                     for (int j = 0; j < errors[i].Length; j++)
                     {
-                        if (i >= weights.Length)
+                        if (i >= weights.Length || j>=errors[i].Length)
                             break;
                         for (int w = 0; w < weights[i].Length; w++)
                         {
@@ -390,7 +465,7 @@ namespace CsharpANN
                 {
                     for (int j = 0; j < weights[i].Length; j++)
                     {
-                        if (i >= errors.Length)
+                        if (i >= errors.Length || j >= weights.Length)
                             break;
                         for (int w = 0; w < errors[i].Length; w++)
                         {
@@ -416,27 +491,5 @@ namespace CsharpANN
             }
             return newWeights;
         }
-
-        //0 //0
-        //0 //0  //0 
-        //0 //0
-        //Error of h1 w1 = w1/(w1+w2)*Error of output
-        //Eorror of h1 w1 = w2/(w1+w2)*Error of output
-
-
-        //For multiple outputs
-        //w1,2 weight 1 of output 2
-        //Error of h1 w1,2 = Error of h1 w1 + (w1,2/(w1,2+w2,2)*Error of output 2
-
-
-        //This is equal to
-        //[w1,1 w2,1] dot [e1] = [eh1]
-        //[w1,2 w2,2]     [e2]   [eh2]
-        //weight matrix transposed
-
-        //To transpose
-        //for(i<rows)
-        //for (j<collums)
-        //data[j][i] = data[i][j]
     }
 }
