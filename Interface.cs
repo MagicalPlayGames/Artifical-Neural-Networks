@@ -11,6 +11,7 @@ namespace CsharpANN
         static void Main(string[] args)
         {
             int choice = 0;
+            Program network;
             if (userInput)
             {
                 Console.WriteLine("This ANN judges if a number is divisble by a number");
@@ -35,7 +36,7 @@ namespace CsharpANN
                         }
                     }
 
-                    Program network = new Program(new ProgramParameters((byte)inputsAsNums[0], nodeSizeInputs, (byte)inputsAsNums[2], (byte)inputsAsNums[3], inputsAsNums[4],0));
+                    network = new Program(new ProgramParameters((byte)inputsAsNums[0], nodeSizeInputs, (byte)inputsAsNums[2], (byte)inputsAsNums[3], inputsAsNums[4],0));
                     choice = 1;
                     while (choice == 1)
                     {
@@ -52,6 +53,7 @@ namespace CsharpANN
             }
             else
             {
+                Console.WriteLine("Algorithm comparison test initiated");
                 int[] node0 = { 8, 4, 4, 2, 2, 1 };
                 int[] node1 = { 6, 4, 4, 2, 2, 1 };
                 int[] node2 = { 8, 2, 4, 3, 2, 1 };
@@ -60,7 +62,6 @@ namespace CsharpANN
                 int[] node5 = { 2, 4, 4, 2, 1, 1 };
                 int[] node6 = { 6, 6, 4, 2, 2, 1 };
                 int[][] nodes = { node0, node1, node2, node3,node4,node5,node6};
-                Program network;
                 float[] thisSet = new float[100];
                 for (byte aN = 0; aN < 3; aN++)
                 {

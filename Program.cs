@@ -4,14 +4,20 @@ namespace CsharpANN
 {
     using System;
 
+
+
+
     public class Program
     {
         //Runs per operate action
-        private int algorithmChoice = 0;
-        private int iterations = 0;
+        private byte algorithmChoice;
+        private int iterations;
         //Accuracy
         private int success;
         private int total;
+        private float accuracy;
+
+        private byte divisbleBy;
 
         //Neuron
         [Serializable]
@@ -28,13 +34,14 @@ namespace CsharpANN
             //adjustment storage for weight backward propergation
             public float[] errorAdjustments;
         };
-
+        //Layer of Neurons
         [Serializable]
         public struct layer
         {
             public node[] nodes;
         }
 
+        //Brain with layers
         [Serializable]
         private struct brain
         {
@@ -50,15 +57,11 @@ namespace CsharpANN
         }
 
         private brain control;
-        private float accuracy;
-        //Press to operate
-        private bool operate;
-
-        private int divisbleBy;
 
 
         //This ANN calculates the probability a random number is divisble by divisbleBy
 
+        //Constructor 1
         public Program(byte layers, int[] nodes, byte divisbleBy,int iterations,float learningRate, byte algoNum)
         {
             this.algorithmChoice = algoNum;
@@ -83,6 +86,8 @@ namespace CsharpANN
                 }
             }
         }
+
+        //Constructor 2
         public Program(ProgramParameters input)
         {
             this.algorithmChoice = input.alogirthmNumber;
@@ -107,6 +112,8 @@ namespace CsharpANN
                 }
             }
         }
+
+        //Operation for input and output
         public float testOp()
         {
             for (int j = 0; j < iterations; j++)
@@ -134,6 +141,7 @@ namespace CsharpANN
             return accuracy;
         }
 
+        //Overall Processing
         private bool processData(string inputs, int expectedOutcome)
         {
             readInput(inputs);
@@ -142,6 +150,7 @@ namespace CsharpANN
             return (MathF.Abs(control.output - control.realOutput) < 0.5);
         }
 
+        //Set all weights to random variables
         public void resetWeights()
         {
             Random rnd = new Random();
@@ -180,6 +189,7 @@ namespace CsharpANN
             control.realOutput = output;
         }
 
+        //Forward Proprogation
         private void writeOutput()
         {
             float finalOutput = 0;
@@ -218,6 +228,10 @@ namespace CsharpANN
             control.output = tanh(finalOutput);
         }
 
+        //Updates the weights
+        //Algorithm 0: findSingleError(),findMatrixErrors
+        //Algorithm 1: findSingleError(), errorTotalRespectCurWeight()
+        //Algorithm 2: topError(),hiddenErrors()
         private void updateAllWeights()
         {
             for (int i = control.layers.Length - 1; i > -1; i--)
@@ -258,18 +272,21 @@ namespace CsharpANN
             }
         }
 
+        //e^x/(1+e^x)
         private float sigmoid(float x)
         {
             float EX = MathF.Exp(x);
             return EX / (1 + EX);
         }
 
+        //(e^-x)/((1+e^-x)^2)
         private float sigmoidPrime(float x)
         {
             float negativeEX = MathF.Exp(-x);
             return negativeEX / (MathF.Pow(1 + negativeEX, 2));
         }
 
+        //Errors = -(outcome-trueOutcome) * (sigmoidPrime(non-activated output))DOT(previous non-activated output^T)
         private float[] topError()
         {
             //https://www.bogotobogo.com/python/scikit-learn/Artificial-Neural-Network-ANN-4-Backpropagation.php
@@ -291,11 +308,13 @@ namespace CsharpANN
                 product[i] *= -(control.output - control.realOutput);
             }
             return product;
-            //-(outcome-trueOutcome)*sigmoidPrime(outputBeforeActivation)DOT(previousOutputsBeforeActivationsTransposed)
         }
 
+
+        //Errors = previousError*sigmoidPrime(non-activated output)DOT(currentWeights^T)DOT(upperInputs^T)
         private float[] hiddenErrors(layer curLayer, layer upperLayer)
         {
+            //hidden errors
             float[][] previousErrors = new float[upperLayer.nodes.Length][];
             for (int i = 0; i < previousErrors.Length; i++)
             {
@@ -332,26 +351,31 @@ namespace CsharpANN
             products[0] = dotProduct(sigmoidPrimes, weightsTransposed);
             products[0] = dotProduct(products, inputsTransposed);
             return dotProduct(products, previousErrors);
-            //hidden errors
-            //previousError*sigmoidPrime(outputBeforeActivation)DOT(weightsTranspose)DOT(inputsTransposed)
         }
 
 
+        //The Total Error in respect to the Current Output
         private float errorTotalRespectCurOutput(float outcome, float trueOutcome)
         {
             return -(trueOutcome - outcome);
         }
 
+        //The Current Output in respect to the Net Output
         private float curOutputRespectNetOutput(float outcome)
         {
             return outcome * (1 - outcome);
         }
+
+
+        //The Net Output in respect to the current weights
 
         private float netOutputRespectCurWeights(float weight, float outcome)
         {
             return weight * outcome;
         }
 
+        //The Total Error in respect to the current weights
+        //The Net Output in respect to the current weights * The Total Error in respect to the Current Output * The Current Output in respect to the Net Output
         private float[] errorTotalRespectCurWeight(node curNode, node[] upperLayer)
         {
             //https://www.edureka.co/blog/backpropagation/
@@ -373,6 +397,7 @@ namespace CsharpANN
         
 
 
+        //(e^(x) - e^(-x)) / (e^(x) + e^(-x))
         private float tanh(float x)
         {
             float EX = MathF.Exp(x);
@@ -380,6 +405,7 @@ namespace CsharpANN
             return (EX - negativeEX) / (EX + negativeEX);
         }
 
+        //Mean Square Error
         private float errorMSE(float outcome,float trueOutcome)
         {
             return MathF.Pow(trueOutcome - outcome, 2);
@@ -397,15 +423,7 @@ namespace CsharpANN
             return weights;
         }
 
-        //weights = [weights1[],weights2[],...]
-        //errors = [errorOfNextNode][curNode]
-        //transpose errors
-
-        //weights DOT errors
-        //if errors > weights
-        //outcome = weights of node *errorOfNextNode
-        //else
-        //outcome = 1weight per node (weights connected to curLayer curNode) * errorsOfWeightNum(not errorsOf1Weight)
+        //Errors = weights * previousErrors
         private float[] findMatrixErrors(node[] curLayer, node[] upperLayer)
         {
             //curLayer for weights
@@ -429,13 +447,10 @@ namespace CsharpANN
                 }
             }
             errors = transpose(errors);
-
-
-
-            //Dot Product
             return dotProduct(errors, weights);
         }
 
+        //Dot product of two matricies
         private float[] dotProduct(float[][] errors, float[][] weights)
         {
             int size;
