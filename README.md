@@ -7,7 +7,7 @@ It is important to read and understand all terms and conditions.
 
 ## Terms and Conditions
 
-The third party agrees to never use their representation to improve, invent, or establish any Artifical Intelligence that has interaction in the physical world. These interaction categories include, but are not limited to: movement, light, language, human anatomy, video monitoring, weapon manufacturing, and chemical/biological in the form of analysis/modification.
+The third party agrees to never use their representation to improve, invent, or establish any Artifical Intelligence that has interaction to and from in the physical world. These interaction categories include, but are not limited to: movement, light, language, human anatomy, video monitoring, weapon manufacturing, and chemical/biological in the form of analysis/modification.
 
 In debugging or running the original ANN or the representation, the third party agrees to all terms and conditions listed on the date of first interaction with the ANN.
 
