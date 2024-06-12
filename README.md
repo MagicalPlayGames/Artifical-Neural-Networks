@@ -5,6 +5,9 @@ These ANN's come with Terms and Conditions.
 These terms and conditions closely allign with the ACM Code of Ethics and Profession Conduct!
 It is important to read and understand all terms and conditions.
 
+## Installation
+Dowload all of the scripts in your prefered langauge, and use the main file to run.
+
 ## Terms and Conditions
 
 The third party agrees to never use their representation to improve, invent, or establish any Artifical Intelligence that has interaction to and from in the physical world. These interaction categories include, but are not limited to: movement, light, language, human anatomy, video monitoring, weapon manufacturing, and chemical/biological in the form of analysis/modification.
